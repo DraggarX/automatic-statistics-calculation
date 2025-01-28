@@ -126,12 +126,44 @@ def count_specializations(user_specializations, specializations, city_to_region,
 
     return counts, region_counts
 
+# Функция для создания таблицы Excel
+def create_excel_table(counts, region_counts, output_file):
+    # Создаем список всех специальностей
+    specializations = list(counts.keys())
+
+    # Создаем список всех регионов
+    regions = set()
+    for (spec, region) in region_counts:
+        regions.add(region)
+    regions = sorted(regions)
+    if 'Другие' in regions:
+        regions.remove('Другие')
+        regions.append('Другие')
+    logging.info(f"Регионы в порядке: {regions}")
+
+    # Создаем список заголовков
+    headers = ['Общее'] + regions
+
+    # Создаем DataFrame
+    data = {}
+
+    for spec in specializations:
+        data[spec] = [counts[spec]] + [region_counts.get((spec, region), 0) for region in regions]
+
+    df = pd.DataFrame(data, index=headers)
+
+    # Записываем в Excel
+    df.to_excel(output_file, sheet_name='Статистика')
+
+    logging.info(f"Таблица Excel создана: {output_file}")
+
 # Основная программа
 if __name__ == "__main__":
     # Укажите пути к Excel-файлам
     specializations_file_path = "specializations.xlsx"
     user_specializations_file_path = "user_specializations.xlsx"
     city_to_region_file_path = "city_to_region.xlsx"
+    output_excel_file = "output_table.xlsx"
 
     try:
         # Загрузка данных
@@ -142,15 +174,8 @@ if __name__ == "__main__":
         # Подсчет упоминаний
         counts, region_counts = count_specializations(user_specializations, specializations, city_to_region)
 
-        # Вывод результатов
-        for spec in counts:
-            print(f"{spec}: {counts[spec]}")
-            # Получаем все регионы для текущей специализации
-            regions = [reg for (s, reg) in region_counts if s == spec]
-            region_counts_spec = {reg: region_counts[(spec, reg)] for reg in regions}
-            for region in sorted(region_counts_spec, key=region_counts_spec.get, reverse=True):
-                print(f"    {region} - {region_counts_spec[region]}")
-            print()
+        # Создание таблицы Excel
+        create_excel_table(counts, region_counts, output_excel_file)
 
     except (FileNotFoundError, ValueError) as e:
         logging.error(e)
